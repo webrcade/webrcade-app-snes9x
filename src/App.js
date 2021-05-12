@@ -29,24 +29,22 @@ class App extends WebrcadeApp {
       if (!rom) throw new Error("A ROM file was not specified.");
       const pal = appProps.pal !== undefined ? appProps.pal === true : null;
 
-      throw Error("Not implemented yet");
-
-      // // Load emscripten and the ROM
-      // const uz = new Unzip();
-      // emulator.loadEmscriptenModule()
-      //   .then(() => new FetchAppData(rom).fetch())
-      //   .then(response => response.blob())
-      //   .then(blob => uz.unzip(blob, [".nes", ".fds", ".nsf", ".unf", ".nez", ".unif"]))
-      //   .then(blob => new Response(blob).arrayBuffer())
-      //   .then(bytes => emulator.setRom(
-      //     pal,
-      //     uz.getName() ? uz.getName() : UrlUtil.getFileName(rom),
-      //     bytes))
-      //   .then(() => this.setState({ mode: ModeEnum.LOADED }))
-      //   .catch(msg => {
-      //     console.error(msg); // TODO: Proper logging
-      //     this.exit(Resources.getText(TEXT_IDS.ERROR_RETRIEVING_GAME));
-      //   })
+      // Load emscripten and the ROM
+      const uz = new Unzip();
+      emulator.loadEmscriptenModule()
+        .then(() => new FetchAppData(rom).fetch())
+        .then(response => { console.log('downloaded.'); return response.blob() })
+        .then(blob => uz.unzip(blob, [".smc", ".fig", ".sfc", ".gd3", ".gd7", ".dx2", ".bsx", ".swc"]))
+        .then(blob => new Response(blob).arrayBuffer())
+        .then(bytes => emulator.setRom(
+          pal,
+          uz.getName() ? uz.getName() : UrlUtil.getFileName(rom),
+          bytes))
+        .then(() => this.setState({ mode: ModeEnum.LOADED }))
+        .catch(msg => {
+          console.error(msg); // TODO: Proper logging
+          this.exit(Resources.getText(TEXT_IDS.ERROR_RETRIEVING_GAME));
+        })
     } catch (e) {
       this.exit(e);
     }
@@ -66,18 +64,16 @@ class App extends WebrcadeApp {
     const { mode } = this.state;
     const { ModeEnum, emulator, canvas } = this;
 
-    // if (mode === ModeEnum.LOADED) {
-    //   window.focus();
-    //   // Start the emulator
-    //   emulator.start(canvas);
-    // }
+    if (mode === ModeEnum.LOADED) {
+      window.focus();
+      // Start the emulator
+      emulator.start(canvas);
+    }
   }
 
   renderCanvas() {
     return (
-      <div id="screen-wrapper">
-        {/* <canvas ref={canvas => { this.canvas = canvas; }} id="screen"></canvas> */}
-      </div>
+      <canvas ref={canvas => { this.canvas = canvas; }} id="screen"></canvas>
     );
   }
 
@@ -88,9 +84,9 @@ class App extends WebrcadeApp {
     return (
       <>
         { super.render()}
-        {/* { mode === ModeEnum.LOADING ? this.renderLoading() : null}
+        { mode === ModeEnum.LOADING ? this.renderLoading() : null}
         { mode === ModeEnum.PAUSE ? this.renderPauseScreen() : null}        
-        { mode === ModeEnum.LOADED || mode === ModeEnum.PAUSE  ? this.renderCanvas() : null} */}
+        { mode === ModeEnum.LOADED || mode === ModeEnum.PAUSE  ? this.renderCanvas() : null}
       </>
     );
   }

@@ -1,0 +1,4 @@
+[submodule "modules/xnes"]
+	path = modules/xnes
+	url = https://github.com/raz0red/xnes.git
+	branch = webrcade
