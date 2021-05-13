@@ -2,6 +2,8 @@ import {
   WebrcadeApp, 
   FetchAppData, 
   Unzip, 
+  md5,  
+  blobToStr,
   UrlUtil, 
   Resources, 
   TEXT_IDS 
@@ -31,15 +33,21 @@ class App extends WebrcadeApp {
 
       // Load emscripten and the ROM
       const uz = new Unzip();
+      let romBlob = null;
+      let romMd5 = null;
       emulator.loadEmscriptenModule()
         .then(() => new FetchAppData(rom).fetch())
         .then(response => { console.log('downloaded.'); return response.blob() })
         .then(blob => uz.unzip(blob, [".smc", ".fig", ".sfc", ".gd3", ".gd7", ".dx2", ".bsx", ".swc"]))
-        .then(blob => new Response(blob).arrayBuffer())
+        .then(blob => { romBlob = blob; return blob; })
+        .then(blob => blobToStr(blob))
+        .then(str => { romMd5 = md5(str); })
+        .then(() => new Response(romBlob).arrayBuffer())
         .then(bytes => emulator.setRom(
           pal,
           uz.getName() ? uz.getName() : UrlUtil.getFileName(rom),
-          bytes))
+          bytes,
+          romMd5))
         .then(() => this.setState({ mode: ModeEnum.LOADED }))
         .catch(msg => {
           console.error(msg); // TODO: Proper logging
@@ -53,7 +61,7 @@ class App extends WebrcadeApp {
   async onPreExit() {
     try {
       await super.onPreExit();
-      // await this.emulator.saveState();
+      await this.emulator.saveState();
     } catch (e) {
       // TODO: Proper logging
       console.error(e);
