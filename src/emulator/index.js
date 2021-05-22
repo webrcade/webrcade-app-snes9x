@@ -6,7 +6,8 @@ import {
   DisplayLoop,
   ScriptAudioProcessor,
   VisibilityChangeMonitor,
-  Storage
+  Storage,
+  hideInactiveMouse
 } from "@webrcade/app-common"
 
 class ButtonMapping {
@@ -175,6 +176,8 @@ export class Emulator {
 
     console.log('start');
 
+    hideInactiveMouse(canvas);
+
     this.canvas = canvas;
     Module.canvas = canvas;     
     
@@ -246,12 +249,19 @@ export class Emulator {
     // Start the audio processor
     this.audioProcessor.start();
 
+    // let check = false;
+
     // Start the display loop
     this.displayLoop.start(() => {      
       frame();      
       collectAudio(samples);
       this.audioProcessor.storeSound(audioChannels, samples);
       this.pollControls();
+
+      // if (!check) {
+      //   check = true;
+      //   alert(this.audioProcessor.isPlaying());
+      // }
     });
   }
 }
