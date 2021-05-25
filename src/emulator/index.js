@@ -1,13 +1,7 @@
 import {
   CIDS,
-  Controller,
-  Controllers,
-  DefaultKeyCodeToControlMapping,
   DisplayLoop,
-  ScriptAudioProcessor,
-  VisibilityChangeMonitor,
-  Storage,
-  hideInactiveMouse
+  AppWrapper
 } from "@webrcade/app-common"
 
 class ButtonMapping {
@@ -19,29 +13,17 @@ class ButtonMapping {
   }    
 }
 
-export class Emulator {
+export class Emulator extends AppWrapper {
   constructor(app, debug = false) {
-    this.controllers = new Controllers([
-      new Controller(new DefaultKeyCodeToControlMapping()),
-      new Controller()
-    ]);
+    super(app, debug);
 
-    this.app = app;
     this.xnes = null;
     this.romBytes = null;
     this.romMd5 = null;
     this.romName = null;
     this.pal = null;
     this.saveStatePath = null;
-
     this.audioChannels = new Array(2);
-    this.audioProcessor = null;
-    this.displayLoop = null;
-    this.visibilityMonitor = null;
-    this.started = false;
-    this.debug = debug;    
-    this.storage = new Storage();
-    this.paused = false;
 
     const bmaps = [];
     this.bmaps = bmaps;
@@ -88,8 +70,12 @@ export class Emulator {
     console.log('pal: ' + this.pal);
   }
 
+  async onShowPauseMenu() {
+    await this.saveState();
+  }
+
   pollControls() {
-    const { controllers, app, bmaps, bcheck } = this;
+    const { controllers, bmaps, bcheck } = this;
     
     controllers.poll();
 
@@ -97,15 +83,7 @@ export class Emulator {
       if (controllers.isControlDown(i, CIDS.ESCAPE)) {
         if (this.pause(true)) {
           controllers.waitUntilControlReleased(i, CIDS.ESCAPE)
-            .then(() => controllers.setEnabled(false))
-            .then(() => this.saveState())
-            .then(() => {
-              app.pause(() => {
-                controllers.setEnabled(true);
-                this.pause(false);
-              });
-            })
-            .catch((e) => console.error(e))
+            .then(() => this.showPauseMenu());
           return;
         }
       }
@@ -139,15 +117,26 @@ export class Emulator {
     });
   }
 
-  pause(p) {
-    if ((p && !this.paused) || (!p && this.paused)) {
-      this.paused = p;
-      this.displayLoop.pause(p);
-      this.audioProcessor.pause(p);
-      return true;
-    }
-    return false;
-  }  
+  async loadState() {
+    const { saveStatePath, storage, SRAM_FILE } = this;
+    const { FS } = window;
+
+    // Write the save state (if applicable)
+    try {
+      // Create the save path (MEM FS)
+      const res = FS.analyzePath(SRAM_FILE, true);
+      if (!res.exists) {
+        const s = await storage.get(saveStatePath);
+        if (s) {
+          console.log('writing sram file.');
+          FS.writeFile(SRAM_FILE, s);
+        }
+      }
+    } catch (e) {
+      // TODO: Proper error handling
+      console.error(e);
+    }    
+  }
 
   async saveState() {
     const { started, saveStatePath, storage, SRAM_FILE } = this;
@@ -167,18 +156,10 @@ export class Emulator {
     }
   }
 
-  async start(canvas) {
-    const { romBytes, pal, app, debug, audioChannels, romMd5, storage, SRAM_FILE } = this;
-    const { Module, FS } = window;
+  async onStart(canvas) {
+    const { romBytes, pal, app, debug, audioChannels, romMd5 } = this;
+    const { Module } = window;
 
-    if (this.started) return;
-    this.started = true;
-
-    console.log('start');
-
-    hideInactiveMouse(canvas);
-
-    this.canvas = canvas;
     Module.canvas = canvas;     
     
     // Force PAL if applicable
@@ -191,24 +172,9 @@ export class Emulator {
       Module._show_fps(1);
     }
 
-    // Save state path
+    // Load save state
     this.saveStatePath = app.getStoragePath(`${romMd5}/sav`);
-
-    // Write the save state (if applicable)
-    try {
-      // Create the save path (MEM FS)
-      const res = FS.analyzePath(SRAM_FILE, true);
-      if (!res.exists) {
-        const s = await storage.get(this.saveStatePath);
-        if (s) {
-          console.log('writing sram file.');
-          FS.writeFile(SRAM_FILE, s);
-        }
-      }
-    } catch (e) {
-      // TODO: Proper error handling
-      console.error(e);
-    }
+    await this.loadState();
 
     // Load the ROM
     const filename = "rom.sfc";
@@ -219,16 +185,8 @@ export class Emulator {
     // Determine PAL mode
     const isPal = pal ? true : (Module._is_pal() === 1);
 
-    // Create audio processor
-    this.audioProcessor = new ScriptAudioProcessor();
     // Create display loop
     this.displayLoop = new DisplayLoop(isPal ? 50 : 60, true, debug);
-    // Visibility monitor
-    this.visibilityMonitor = new VisibilityChangeMonitor((p) => {
-      if (!app.isPauseScreen()) {
-        this.pause(p);
-      }
-    });
     
     // Audio configuration
     const AUDIO_LENGTH = 8192;
@@ -249,19 +207,12 @@ export class Emulator {
     // Start the audio processor
     this.audioProcessor.start();
 
-    // let check = false;
-
     // Start the display loop
     this.displayLoop.start(() => {      
       frame();      
       collectAudio(samples);
       this.audioProcessor.storeSound(audioChannels, samples);
       this.pollControls();
-
-      // if (!check) {
-      //   check = true;
-      //   alert(this.audioProcessor.isPlaying());
-      // }
     });
   }
 }
