@@ -172,6 +172,9 @@ export class Emulator extends AppWrapper {
       Module._show_fps(1);
     }
 
+    // Disable Emscripten capturing events
+    window.SDL.receiveEvent = (event) => {}
+
     // Load save state
     this.saveStatePath = app.getStoragePath(`${romMd5}/sav`);
     await this.loadState();
