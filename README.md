@@ -1,1 +1,1 @@
-# webЯcade XNES
+# webЯcade snes9x
