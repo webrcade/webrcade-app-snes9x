@@ -160,6 +160,7 @@ export class Emulator extends AppWrapper {
     const { romBytes, pal, app, debug, audioChannels, romMd5 } = this;
     const { Module } = window;
 
+    // Set the canvas for the module
     Module.canvas = canvas;     
     
     // Force PAL if applicable
