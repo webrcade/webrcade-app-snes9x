@@ -1,7 +1,8 @@
 import {
-  CIDS,
+  AppWrapper,
   DisplayLoop,
-  AppWrapper
+  CIDS,
+  LOG  
 } from "@webrcade/app-common"
 
 class ButtonMapping {
@@ -65,9 +66,9 @@ export class Emulator extends AppWrapper {
     if (this.pal === null || this.pal === undefined) {
       this.pal = false;
     }
-    console.log('name: ' + this.romName);
-    console.log('md5: ' + this.romMd5);
-    console.log('pal: ' + this.pal);
+    LOG.info('name: ' + this.romName);
+    LOG.info('md5: ' + this.romMd5);
+    LOG.info('pal: ' + this.pal);
   }
 
   async onShowPauseMenu() {
@@ -108,9 +109,9 @@ export class Emulator extends AppWrapper {
       script.src = 'js/snes9x.js';
       script.async = true;
       script.onload = () => {
-        console.log('Script loaded.');
+        LOG.info('Script loaded.');
         window.initSNES = () => {
-          console.log("initSNES.");
+          LOG.info("initSNES.");
           resolve();
         }            
       };
@@ -128,18 +129,17 @@ export class Emulator extends AppWrapper {
       if (!res.exists) {
         const s = await storage.get(saveStatePath);
         if (s) {
-          console.log('writing sram file.');
+          LOG.info('writing sram file.');
           FS.writeFile(SRAM_FILE, s);
         }
       }
     } catch (e) {
-      // TODO: Proper error handling
-      console.error(e);
+      LOG.error(e);
     }    
   }
 
   async saveState() {
-    const { started, saveStatePath, storage, SRAM_FILE } = this;
+    const { saveStatePath, started, storage, SRAM_FILE } = this;
     const { Module, FS } = window;
     if (!started || !saveStatePath) {
       return;
@@ -150,14 +150,14 @@ export class Emulator extends AppWrapper {
     if (res.exists) {
       const s = FS.readFile(SRAM_FILE);              
       if (s) {
-        console.log('saving sram.');
+        LOG.info('saving sram.');
         await storage.put(saveStatePath, s);
       }
     }
   }
 
   async onStart(canvas) {
-    const { romBytes, pal, app, debug, audioChannels, romMd5 } = this;
+    const { app, audioChannels, debug, pal, romBytes, romMd5 } = this;
     const { Module } = window;
 
     // Set the canvas for the module
@@ -195,7 +195,7 @@ export class Emulator extends AppWrapper {
     // Audio configuration
     const AUDIO_LENGTH = 8192;
     const samples = 48000 / (isPal ? 50 : 60);
-    console.log("Samples: " + samples);
+    LOG.info("Samples: " + samples);
 
     // Incoming audio channels
     audioChannels[0] = new Float32Array(

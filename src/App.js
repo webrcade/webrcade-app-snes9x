@@ -1,11 +1,12 @@
 import {
-  WebrcadeApp, 
-  FetchAppData, 
-  Unzip, 
-  md5,  
   blobToStr,
-  UrlUtil, 
+  md5,  
+  FetchAppData, 
   Resources, 
+  Unzip, 
+  UrlUtil, 
+  WebrcadeApp, 
+  LOG,
   TEXT_IDS 
 } from '@webrcade/app-common'
 import { Emulator } from './emulator'
@@ -37,7 +38,7 @@ class App extends WebrcadeApp {
       let romMd5 = null;
       emulator.loadEmscriptenModule()
         .then(() => new FetchAppData(rom).fetch())
-        .then(response => { console.log('downloaded.'); return response.blob() })
+        .then(response => { LOG.info('downloaded.'); return response.blob() })
         .then(blob => uz.unzip(blob, [".smc", ".fig", ".sfc", ".gd3", ".gd7", ".dx2", ".bsx", ".swc"]))
         .then(blob => { romBlob = blob; return blob; })
         .then(blob => blobToStr(blob))
@@ -50,7 +51,7 @@ class App extends WebrcadeApp {
           romMd5))
         .then(() => this.setState({ mode: ModeEnum.LOADED }))
         .catch(msg => {
-          console.error(msg); // TODO: Proper logging
+          LOG.error(msg);
           this.exit(Resources.getText(TEXT_IDS.ERROR_RETRIEVING_GAME));
         })
     } catch (e) {
@@ -63,14 +64,13 @@ class App extends WebrcadeApp {
       await super.onPreExit();
       await this.emulator.saveState();
     } catch (e) {
-      // TODO: Proper logging
-      console.error(e);
+      LOG.error(e);
     }
   }
 
   componentDidUpdate() {
     const { mode } = this.state;
-    const { ModeEnum, emulator, canvas } = this;
+    const { canvas, emulator, ModeEnum } = this;
 
     if (mode === ModeEnum.LOADED) {
       window.focus();
