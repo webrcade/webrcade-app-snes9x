@@ -52,7 +52,7 @@ class App extends WebrcadeApp {
         .then(() => this.setState({ mode: ModeEnum.LOADED }))
         .catch(msg => {
           LOG.error(msg);
-          this.exit(Resources.getText(TEXT_IDS.ERROR_RETRIEVING_GAME));
+          this.exit(this.isDebug() ? msg : Resources.getText(TEXT_IDS.ERROR_RETRIEVING_GAME));
         })
     } catch (e) {
       this.exit(e);
