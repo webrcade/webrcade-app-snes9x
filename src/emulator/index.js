@@ -106,7 +106,15 @@ export class Emulator extends AppWrapper {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
       document.body.appendChild(script);
-      script.src = 'js/snes9x.js';
+
+      // TODO: Remove this hack once the LOTR and Axelay
+      // issue is resolved. Chrome bug?
+      const nav = navigator.userAgent.toLowerCase();
+      // Is chrome and not mobile
+      const useHack = 
+        nav.indexOf('chrome') !== -1 && nav.indexOf('mobile') === -1;
+
+      script.src = useHack ? 'js/snes9x-chrome-intel.js' : 'js/snes9x.js';
       script.async = true;
       script.onload = () => {
         LOG.info('Script loaded.');
@@ -210,6 +218,13 @@ export class Emulator extends AppWrapper {
 
     // Start the audio processor
     this.audioProcessor.start();
+
+    // setInterval(() => {
+    //   frame();      
+    //   collectAudio(samples);
+    //   this.audioProcessor.storeSound(audioChannels, samples);
+    //   this.pollControls();
+    // }, 1);
 
     // Start the display loop
     this.displayLoop.start(() => {      
