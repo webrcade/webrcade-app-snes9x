@@ -36,9 +36,6 @@ class App extends WebrcadeApp {
     const extsNotUnique = 
       AppRegistry.instance.getExtensions(APP_TYPE_KEYS.SNES9X, true, true);
 
-    console.log(exts);
-    console.log(extsNotUnique);
-
     try {
       // Get the ROM location that was specified
       const rom = appProps.rom;
@@ -46,7 +43,7 @@ class App extends WebrcadeApp {
       const pal = appProps.pal !== undefined ? appProps.pal === true : null;
 
       // Load emscripten and the ROM
-      const uz = new Unzip();
+      const uz = new Unzip().setDebug(this.isDebug());
       let romBlob = null;
       let romMd5 = null;
       emulator.loadEmscriptenModule()
