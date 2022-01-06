@@ -147,7 +147,7 @@ export class Emulator extends AppWrapper {
   }
 
   async saveState() {
-    const { saveStatePath, started, storage, SRAM_FILE } = this;
+    const { saveStatePath, started, SRAM_FILE } = this;
     const { Module, FS } = window;
     if (!started || !saveStatePath) {
       return;
@@ -159,7 +159,7 @@ export class Emulator extends AppWrapper {
       const s = FS.readFile(SRAM_FILE);              
       if (s) {
         LOG.info('saving sram.');
-        await storage.put(saveStatePath, s);
+        await this.saveStateToStorage(saveStatePath, s);
       }
     }
   }
