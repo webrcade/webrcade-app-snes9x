@@ -1,5 +1,8 @@
 import {
   AppWrapper,
+  Controller, 
+  Controllers, 
+  DefaultKeyCodeToControlMapping,
   DisplayLoop,
   CIDS,
   LOG  
@@ -15,9 +18,10 @@ class ButtonMapping {
 }
 
 export class Emulator extends AppWrapper {
-  constructor(app, debug = false) {
+  constructor(app, port2, debug = false) {
     super(app, debug);
 
+    this.port2 = port2;
     this.xnes = null;
     this.romBytes = null;
     this.romMd5 = null;
@@ -25,10 +29,22 @@ export class Emulator extends AppWrapper {
     this.pal = null;
     this.saveStatePath = null;
     this.audioChannels = new Array(2);
+    this.controllerCount = 2;
+
+    if (port2 === 1) {
+      this.controllerCount = 5;
+      this.controllers = new Controllers([
+        new Controller(new DefaultKeyCodeToControlMapping()),
+        new Controller(),
+        new Controller(),
+        new Controller(),
+        new Controller(),
+      ]);
+    }
 
     const bmaps = [];
     this.bmaps = bmaps;
-    for(let i = 0; i < 2; i++) {
+    for(let i = 0; i < this.controllerCount; i++) {
       const b = i * 12;
       bmaps.push(new ButtonMapping(b+0, i, CIDS.RIGHT));
       bmaps.push(new ButtonMapping(b+1, i, CIDS.LEFT));
@@ -192,7 +208,7 @@ export class Emulator extends AppWrapper {
     const filename = "rom.sfc";
     const u8array = new Uint8Array(romBytes);
     Module.FS_createDataFile("/", filename, u8array, true, true);
-    Module.cwrap('run', null, ['string'])(filename);    
+    Module.cwrap('run', null, ['string', 'int'])(filename, this.port2);    
 
     // Determine PAL mode
     const isPal = pal ? true : (Module._is_pal() === 1);
@@ -218,13 +234,6 @@ export class Emulator extends AppWrapper {
 
     // Start the audio processor
     this.audioProcessor.start();
-
-    // setInterval(() => {
-    //   frame();      
-    //   collectAudio(samples);
-    //   this.audioProcessor.storeSound(audioChannels, samples);
-    //   this.pollControls();
-    // }, 1);
 
     // Start the display loop
     this.displayLoop.start(() => {      

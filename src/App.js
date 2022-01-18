@@ -22,11 +22,6 @@ class App extends WebrcadeApp {
   componentDidMount() {
     super.componentDidMount();
 
-    // Create the emulator
-    if (this.emulator === null) {
-      this.emulator = new Emulator(this, this.isDebug());
-    }
-
     const { appProps, emulator, ModeEnum } = this;
 
     // Determine extensions
@@ -41,6 +36,19 @@ class App extends WebrcadeApp {
       const rom = appProps.rom;
       if (!rom) throw new Error("A ROM file was not specified.");
       const pal = appProps.pal !== undefined ? appProps.pal === true : null;
+
+      // Get controller in port #2
+      let port2 = 0;
+      const port2val = appProps.port2;
+      if (port2val) {
+        port2 = parseInt(port2val);
+      }      
+
+      // Create the emulator
+      if (this.emulator === null) {
+        this.emulator = new Emulator(this, port2, this.isDebug());
+      }
+      const emulator = this.emulator;
 
       // Load emscripten and the ROM
       const uz = new Unzip().setDebug(this.isDebug());
