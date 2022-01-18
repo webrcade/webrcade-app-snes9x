@@ -22,7 +22,7 @@ class App extends WebrcadeApp {
   componentDidMount() {
     super.componentDidMount();
 
-    const { appProps, emulator, ModeEnum } = this;
+    const { appProps, ModeEnum } = this;
 
     // Determine extensions
     // [".smc", ".fig", ".sfc", ".gd3", ".gd7", ".dx2", ".bsx", ".swc"], future...
