@@ -1,16 +1,17 @@
 import {
   blobToStr,
-  md5,  
+  md5,
   romNameScorer,
+  settings,
   AppRegistry,
-  FetchAppData, 
-  Resources, 
-  Unzip, 
-  UrlUtil, 
-  WebrcadeApp, 
+  FetchAppData,
+  Resources,
+  Unzip,
+  UrlUtil,
+  WebrcadeApp,
   APP_TYPE_KEYS,
   LOG,
-  TEXT_IDS 
+  TEXT_IDS
 } from '@webrcade/app-common'
 import { Emulator } from './emulator'
 
@@ -26,9 +27,9 @@ class App extends WebrcadeApp {
 
     // Determine extensions
     // [".smc", ".fig", ".sfc", ".gd3", ".gd7", ".dx2", ".bsx", ".swc"], future...
-    const exts = 
+    const exts =
       AppRegistry.instance.getExtensions(APP_TYPE_KEYS.SNES9X, true, false);
-    const extsNotUnique = 
+    const extsNotUnique =
       AppRegistry.instance.getExtensions(APP_TYPE_KEYS.SNES9X, true, true);
 
     try {
@@ -42,7 +43,7 @@ class App extends WebrcadeApp {
       const port2val = appProps.port2;
       if (port2val) {
         port2 = parseInt(port2val);
-      }      
+      }
 
       // Create the emulator
       if (this.emulator === null) {
@@ -55,6 +56,8 @@ class App extends WebrcadeApp {
       let romBlob = null;
       let romMd5 = null;
       emulator.loadEmscriptenModule()
+        .then(() => settings.load())
+        // .then(() => settings.setBilinearFilterEnabled(true))
         .then(() => new FetchAppData(rom).fetch())
         .then(response => { LOG.info('downloaded.'); return response.blob() })
         .then(blob => uz.unzip(blob, extsNotUnique, exts, romNameScorer))
@@ -99,7 +102,7 @@ class App extends WebrcadeApp {
 
   renderCanvas() {
     return (
-      <canvas ref={canvas => { this.canvas = canvas; }} id="screen"></canvas>
+      <canvas style={this.getCanvasStyles()} ref={canvas => { this.canvas = canvas; }} id="screen"></canvas>
     );
   }
 
@@ -111,7 +114,7 @@ class App extends WebrcadeApp {
       <>
         { super.render()}
         { mode === ModeEnum.LOADING ? this.renderLoading() : null}
-        { mode === ModeEnum.PAUSE ? this.renderPauseScreen() : null}        
+        { mode === ModeEnum.PAUSE ? this.renderPauseScreen() : null}
         { mode === ModeEnum.LOADED || mode === ModeEnum.PAUSE  ? this.renderCanvas() : null}
       </>
     );
