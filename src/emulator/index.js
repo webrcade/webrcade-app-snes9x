@@ -1,11 +1,11 @@
 import {
   AppWrapper,
-  Controller, 
-  Controllers, 
+  Controller,
+  Controllers,
   DefaultKeyCodeToControlMapping,
   DisplayLoop,
   CIDS,
-  LOG  
+  LOG
 } from "@webrcade/app-common"
 
 class ButtonMapping {
@@ -14,7 +14,7 @@ class ButtonMapping {
     this.joy = joy;
     this.cid = cid;
     this.down = false;
-  }    
+  }
 }
 
 export class Emulator extends AppWrapper {
@@ -58,7 +58,7 @@ export class Emulator extends AppWrapper {
       bmaps.push(new ButtonMapping(b+9, i, CIDS.X));
       bmaps.push(new ButtonMapping(b+10, i, CIDS.LBUMP));
       bmaps.push(new ButtonMapping(b+11, i, CIDS.RBUMP));
-    }    
+    }
     const controllers = this.controllers;
     this.bcheck = map => {
       const down = controllers.isControlDown(map.joy, map.cid);
@@ -70,6 +70,7 @@ export class Emulator extends AppWrapper {
   }
 
   SRAM_FILE = '/rom.srm';
+  SAVE_NAME = 'sav';
 
   setRom(pal, name, bytes, md5) {
     if (bytes.byteLength === 0) {
@@ -93,7 +94,7 @@ export class Emulator extends AppWrapper {
 
   pollControls() {
     const { controllers, bmaps, bcheck } = this;
-    
+
     controllers.poll();
 
     for (let i = 0; i < 2; i++) {
@@ -108,7 +109,7 @@ export class Emulator extends AppWrapper {
 
     bmaps.forEach(bcheck);
   }
-                             
+
   loadEmscriptenModule() {
     const { app } = this;
 
@@ -127,7 +128,7 @@ export class Emulator extends AppWrapper {
       // issue is resolved. Chrome bug?
       const nav = navigator.userAgent.toLowerCase();
       // Is chrome and not mobile
-      const useHack = 
+      const useHack =
         nav.indexOf('chrome') !== -1 && nav.indexOf('mobile') === -1;
 
       script.src = useHack ? 'js/snes9x-chrome-intel.js' : 'js/snes9x.js';
@@ -137,56 +138,103 @@ export class Emulator extends AppWrapper {
         window.initSNES = () => {
           LOG.info("initSNES.");
           resolve();
-        }            
+        }
       };
     });
   }
 
+  async migrateSaves() {
+    const { saveStatePath, storage, SAVE_NAME } = this;
+
+    // Load old saves (if applicable)
+    const sram = await storage.get(saveStatePath);
+    if (sram) {
+      LOG.info("Migrating local saves.");
+
+      await this.getSaveManager().saveLocal(saveStatePath, [{
+        name: SAVE_NAME,
+        content: sram
+      }]);
+
+      // Delete old location (and info)
+      await storage.remove(saveStatePath);
+      await storage.remove(`${saveStatePath}/info`);
+    }
+  }
+
   async loadState() {
-    const { saveStatePath, storage, SRAM_FILE } = this;
+    const { saveStatePath, SAVE_NAME, SRAM_FILE } = this;
     const { FS } = window;
 
     // Write the save state (if applicable)
     try {
+      // Migrate old save format
+      await this.migrateSaves();
+
       // Create the save path (MEM FS)
       const res = FS.analyzePath(SRAM_FILE, true);
       if (!res.exists) {
-        const s = await storage.get(saveStatePath);
-        if (s) {
-          LOG.info('writing sram file.');
-          FS.writeFile(SRAM_FILE, s);
+        // Load from new save format
+        const files = await this.getSaveManager().load(saveStatePath,
+          this.loadMessageCallback);
+
+        if (files) {
+          for (let i = 0; i < files.length; i++) {
+            const f = files[i];
+            if (f.name === SAVE_NAME) {
+              LOG.info('writing sram file.');
+              FS.writeFile(SRAM_FILE, f.content);
+              break;
+            }
+          }
         }
       }
     } catch (e) {
-      LOG.error(e);
-    }    
+      LOG.error("Error loading save state: " + e);
+    }
+  }
+
+  async saveInOldFormat(s) {
+    const { saveStatePath } = this;
+    // old, for testing migration
+    await this.saveStateToStorage(saveStatePath, s);
   }
 
   async saveState() {
-    const { saveStatePath, started, SRAM_FILE } = this;
+    const { saveStatePath, started, SAVE_NAME, SRAM_FILE } = this;
     const { Module, FS } = window;
-    if (!started || !saveStatePath) {
-      return;
-    }
-    
-    Module._S9xAutoSaveSRAM();    
-    const res = FS.analyzePath(SRAM_FILE, true);
-    if (res.exists) {
-      const s = FS.readFile(SRAM_FILE);              
-      if (s) {
-        LOG.info('saving sram.');
-        await this.saveStateToStorage(saveStatePath, s);
+
+    try {
+      if (!started || !saveStatePath) {
+        return;
       }
+
+      Module._S9xAutoSaveSRAM();
+      const res = FS.analyzePath(SRAM_FILE, true);
+      if (res.exists) {
+        const s = FS.readFile(SRAM_FILE);
+        if (s) {
+          LOG.info('saving sram.');
+
+          //await this.saveInOldFormat(s);
+          await this.getSaveManager().save(saveStatePath, [{
+            name: SAVE_NAME,
+            content: s
+          }], this.saveMessageCallback);
+        }
+      }
+    } catch (e) {
+      LOG.error("Error persisting save state: " + e);
     }
   }
 
   async onStart(canvas) {
-    const { app, audioChannels, debug, pal, romBytes, romMd5 } = this;
+    const { app, audioChannels, debug, pal, romBytes, romMd5, SAVE_NAME } = this;
     const { Module } = window;
 
     // Set the canvas for the module
-    Module.canvas = canvas;     
-    
+    Module.canvas = canvas;
+
     // Force PAL if applicable
     if (pal) {
       Module._force_pal(1);
@@ -201,21 +249,21 @@ export class Emulator extends AppWrapper {
     window.SDL.receiveEvent = (event) => {}
 
     // Load save state
-    this.saveStatePath = app.getStoragePath(`${romMd5}/sav`);
+    this.saveStatePath = app.getStoragePath(`${romMd5}/${SAVE_NAME}`);
     await this.loadState();
 
     // Load the ROM
     const filename = "rom.sfc";
     const u8array = new Uint8Array(romBytes);
     Module.FS_createDataFile("/", filename, u8array, true, true);
-    Module.cwrap('run', null, ['string', 'int'])(filename, this.port2);    
+    Module.cwrap('run', null, ['string', 'int'])(filename, this.port2);
 
     // Determine PAL mode
     const isPal = pal ? true : (Module._is_pal() === 1);
 
     // Create display loop
     this.displayLoop = new DisplayLoop(isPal ? 50 : 60, true, debug);
-    
+
     // Audio configuration
     const AUDIO_LENGTH = 8192;
     const samples = 48000 / (isPal ? 50 : 60);
@@ -236,8 +284,8 @@ export class Emulator extends AppWrapper {
     this.audioProcessor.start();
 
     // Start the display loop
-    this.displayLoop.start(() => {      
-      frame();      
+    this.displayLoop.start(() => {
+      frame();
       collectAudio(samples);
       this.audioProcessor.storeSound(audioChannels, samples);
       this.pollControls();

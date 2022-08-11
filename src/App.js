@@ -85,7 +85,9 @@ class App extends WebrcadeApp {
   async onPreExit() {
     try {
       await super.onPreExit();
-      await this.emulator.saveState();
+      if (!this.isExitFromPause()) {
+        await this.emulator.saveState();
+      }
     } catch (e) {
       LOG.error(e);
     }
@@ -110,7 +112,7 @@ class App extends WebrcadeApp {
         emulator={emulator}
         appProps={appProps}
         closeCallback={() => this.resume()}
-        exitCallback={() => this.exit()}
+        exitCallback={() => this.exitFromPause()}
         isEditor={this.isEditor}
       />
     );
