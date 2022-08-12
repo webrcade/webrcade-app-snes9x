@@ -5,8 +5,8 @@ import {
   DefaultKeyCodeToControlMapping,
   DisplayLoop,
   CIDS,
-  LOG
-} from "@webrcade/app-common"
+  LOG,
+} from '@webrcade/app-common';
 
 class ButtonMapping {
   constructor(id, joy, cid) {
@@ -44,29 +44,29 @@ export class Emulator extends AppWrapper {
 
     const bmaps = [];
     this.bmaps = bmaps;
-    for(let i = 0; i < this.controllerCount; i++) {
+    for (let i = 0; i < this.controllerCount; i++) {
       const b = i * 12;
-      bmaps.push(new ButtonMapping(b+0, i, CIDS.RIGHT));
-      bmaps.push(new ButtonMapping(b+1, i, CIDS.LEFT));
-      bmaps.push(new ButtonMapping(b+2, i, CIDS.DOWN));
-      bmaps.push(new ButtonMapping(b+3, i, CIDS.UP));
-      bmaps.push(new ButtonMapping(b+4, i, CIDS.START));
-      bmaps.push(new ButtonMapping(b+5, i, CIDS.SELECT));
-      bmaps.push(new ButtonMapping(b+6, i, CIDS.B));
-      bmaps.push(new ButtonMapping(b+7, i, CIDS.A));
-      bmaps.push(new ButtonMapping(b+8, i, CIDS.Y));
-      bmaps.push(new ButtonMapping(b+9, i, CIDS.X));
-      bmaps.push(new ButtonMapping(b+10, i, CIDS.LBUMP));
-      bmaps.push(new ButtonMapping(b+11, i, CIDS.RBUMP));
+      bmaps.push(new ButtonMapping(b + 0, i, CIDS.RIGHT));
+      bmaps.push(new ButtonMapping(b + 1, i, CIDS.LEFT));
+      bmaps.push(new ButtonMapping(b + 2, i, CIDS.DOWN));
+      bmaps.push(new ButtonMapping(b + 3, i, CIDS.UP));
+      bmaps.push(new ButtonMapping(b + 4, i, CIDS.START));
+      bmaps.push(new ButtonMapping(b + 5, i, CIDS.SELECT));
+      bmaps.push(new ButtonMapping(b + 6, i, CIDS.B));
+      bmaps.push(new ButtonMapping(b + 7, i, CIDS.A));
+      bmaps.push(new ButtonMapping(b + 8, i, CIDS.Y));
+      bmaps.push(new ButtonMapping(b + 9, i, CIDS.X));
+      bmaps.push(new ButtonMapping(b + 10, i, CIDS.LBUMP));
+      bmaps.push(new ButtonMapping(b + 11, i, CIDS.RBUMP));
     }
     const controllers = this.controllers;
-    this.bcheck = map => {
+    this.bcheck = (map) => {
       const down = controllers.isControlDown(map.joy, map.cid);
       if (down !== map.down) {
         window.Module._report_button(map.id, down);
         map.down = down;
-      };
-    }
+      }
+    };
   }
 
   SRAM_FILE = '/rom.srm';
@@ -74,7 +74,7 @@ export class Emulator extends AppWrapper {
 
   setRom(pal, name, bytes, md5) {
     if (bytes.byteLength === 0) {
-      throw new Error("The size is invalid (0 bytes).");
+      throw new Error('The size is invalid (0 bytes).');
     }
     this.romName = name;
     this.romMd5 = md5;
@@ -100,7 +100,8 @@ export class Emulator extends AppWrapper {
     for (let i = 0; i < 2; i++) {
       if (controllers.isControlDown(i, CIDS.ESCAPE)) {
         if (this.pause(true)) {
-          controllers.waitUntilControlReleased(i, CIDS.ESCAPE)
+          controllers
+            .waitUntilControlReleased(i, CIDS.ESCAPE)
             .then(() => this.showPauseMenu());
           return;
         }
@@ -116,9 +117,9 @@ export class Emulator extends AppWrapper {
     window.Module = {
       preRun: [],
       postRun: [],
-      onAbort: msg => app.exit(msg),
+      onAbort: (msg) => app.exit(msg),
       onExit: () => app.exit(),
-    }
+    };
 
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -136,9 +137,9 @@ export class Emulator extends AppWrapper {
       script.onload = () => {
         LOG.info('Script loaded.');
         window.initSNES = () => {
-          LOG.info("initSNES.");
+          LOG.info('initSNES.');
           resolve();
-        }
+        };
       };
     });
   }
@@ -149,12 +150,14 @@ export class Emulator extends AppWrapper {
     // Load old saves (if applicable)
     const sram = await storage.get(saveStatePath);
     if (sram) {
-      LOG.info("Migrating local saves.");
+      LOG.info('Migrating local saves.');
 
-      await this.getSaveManager().saveLocal(saveStatePath, [{
-        name: SAVE_NAME,
-        content: sram
-      }]);
+      await this.getSaveManager().saveLocal(saveStatePath, [
+        {
+          name: SAVE_NAME,
+          content: sram,
+        },
+      ]);
 
       // Delete old location (and info)
       await storage.remove(saveStatePath);
@@ -175,8 +178,10 @@ export class Emulator extends AppWrapper {
       const res = FS.analyzePath(SRAM_FILE, true);
       if (!res.exists) {
         // Load from new save format
-        const files = await this.getSaveManager().load(saveStatePath,
-          this.loadMessageCallback);
+        const files = await this.getSaveManager().load(
+          saveStatePath,
+          this.loadMessageCallback,
+        );
 
         if (files) {
           for (let i = 0; i < files.length; i++) {
@@ -190,7 +195,7 @@ export class Emulator extends AppWrapper {
         }
       }
     } catch (e) {
-      LOG.error("Error loading save state: " + e);
+      LOG.error('Error loading save state: ' + e);
     }
   }
 
@@ -217,19 +222,26 @@ export class Emulator extends AppWrapper {
           LOG.info('saving sram.');
 
           //await this.saveInOldFormat(s);
-          await this.getSaveManager().save(saveStatePath, [{
-            name: SAVE_NAME,
-            content: s
-          }], this.saveMessageCallback);
+          await this.getSaveManager().save(
+            saveStatePath,
+            [
+              {
+                name: SAVE_NAME,
+                content: s,
+              },
+            ],
+            this.saveMessageCallback,
+          );
         }
       }
     } catch (e) {
-      LOG.error("Error persisting save state: " + e);
+      LOG.error('Error persisting save state: ' + e);
     }
   }
 
   async onStart(canvas) {
-    const { app, audioChannels, debug, pal, romBytes, romMd5, SAVE_NAME } = this;
+    const { app, audioChannels, debug, pal, romBytes, romMd5, SAVE_NAME } =
+      this;
     const { Module } = window;
 
     // Set the canvas for the module
@@ -246,20 +258,20 @@ export class Emulator extends AppWrapper {
     }
 
     // Disable Emscripten capturing events
-    window.SDL.receiveEvent = (event) => {}
+    window.SDL.receiveEvent = (event) => {};
 
     // Load save state
     this.saveStatePath = app.getStoragePath(`${romMd5}/${SAVE_NAME}`);
     await this.loadState();
 
     // Load the ROM
-    const filename = "rom.sfc";
+    const filename = 'rom.sfc';
     const u8array = new Uint8Array(romBytes);
-    Module.FS_createDataFile("/", filename, u8array, true, true);
+    Module.FS_createDataFile('/', filename, u8array, true, true);
     Module.cwrap('run', null, ['string', 'int'])(filename, this.port2);
 
     // Determine PAL mode
-    const isPal = pal ? true : (Module._is_pal() === 1);
+    const isPal = pal ? true : Module._is_pal() === 1;
 
     // Create display loop
     this.displayLoop = new DisplayLoop(isPal ? 50 : 60, true, debug);
@@ -267,13 +279,19 @@ export class Emulator extends AppWrapper {
     // Audio configuration
     const AUDIO_LENGTH = 8192;
     const samples = 48000 / (isPal ? 50 : 60);
-    LOG.info("Samples: " + samples);
+    LOG.info('Samples: ' + samples);
 
     // Incoming audio channels
     audioChannels[0] = new Float32Array(
-      Module.HEAPF32.buffer, Module._get_left_audio_buffer(), AUDIO_LENGTH);
+      Module.HEAPF32.buffer,
+      Module._get_left_audio_buffer(),
+      AUDIO_LENGTH,
+    );
     audioChannels[1] = new Float32Array(
-      Module.HEAPF32.buffer, Module._get_right_audio_buffer(), AUDIO_LENGTH);
+      Module.HEAPF32.buffer,
+      Module._get_right_audio_buffer(),
+      AUDIO_LENGTH,
+    );
 
     // frame step method
     const frame = Module._mainloop;
