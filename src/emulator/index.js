@@ -301,6 +301,9 @@ export class Emulator extends AppWrapper {
     // Start the audio processor
     this.audioProcessor.start();
 
+    // Enable showing messages
+    this.setShowMessageEnabled(true);
+
     // Start the display loop
     this.displayLoop.start(() => {
       frame();
