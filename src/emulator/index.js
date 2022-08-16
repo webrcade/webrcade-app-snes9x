@@ -192,6 +192,9 @@ export class Emulator extends AppWrapper {
               break;
             }
           }
+
+          // Cache the initial files
+          await this.getSaveManager().checkFilesChanged(files);
         }
       }
     } catch (e) {
@@ -221,17 +224,22 @@ export class Emulator extends AppWrapper {
         if (s) {
           LOG.info('saving sram.');
 
-          //await this.saveInOldFormat(s);
-          await this.getSaveManager().save(
-            saveStatePath,
-            [
-              {
-                name: SAVE_NAME,
-                content: s,
-              },
-            ],
-            this.saveMessageCallback,
-          );
+          const files = [
+            {
+              name: SAVE_NAME,
+              content: s,
+            },
+          ];
+
+          // Cache the initial files
+          if (await this.getSaveManager().checkFilesChanged(files)) {
+            //await this.saveInOldFormat(s);
+            await this.getSaveManager().save(
+              saveStatePath,
+              files,
+              this.saveMessageCallback,
+            );
+          }
         }
       }
     } catch (e) {
