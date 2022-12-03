@@ -17,6 +17,8 @@ class ButtonMapping {
   }
 }
 
+const STATE_FILE_PATH = "/freeze.out"
+
 export class Emulator extends AppWrapper {
   constructor(app, port2, debug = false) {
     super(app, debug);
@@ -27,6 +29,7 @@ export class Emulator extends AppWrapper {
     this.romMd5 = null;
     this.romName = null;
     this.pal = null;
+    this.saveStatePrefix = null;
     this.saveStatePath = null;
     this.audioChannels = new Array(2);
     this.controllerCount = 2;
@@ -247,6 +250,63 @@ export class Emulator extends AppWrapper {
     }
   }
 
+  async getStateSlots(showStatus = true) {
+    return await this.getSaveManager().getStateSlots(
+      this.saveStatePrefix, showStatus ? this.saveMessageCallback : null
+    );
+  }
+
+  async saveStateForSlot(slot) {
+    const { Module, FS } = window;
+
+    Module._freeze();
+
+    let s = null;
+    try {
+      try {
+        s = FS.readFile(STATE_FILE_PATH);
+      } catch (e) { console.log(e) }
+
+      if (s) {
+        await this.getSaveManager().saveState(
+          this.saveStatePrefix, slot, s,
+          this.canvas,
+          this.saveMessageCallback);
+      }
+    } catch (e) {
+      LOG.error('Error saving state: ' + e);
+    }
+
+    return true;
+  }
+
+  async loadStateForSlot(slot) {
+    const { Module, FS } = window;
+
+    try {
+      const state = await this.getSaveManager().loadState(
+        this.saveStatePrefix, slot, this.saveMessageCallback);
+
+      if (state) {
+        FS.writeFile(STATE_FILE_PATH, state);
+        Module._unfreeze();
+      }
+    } catch (e) {
+      LOG.error('Error loading state: ' + e);
+    }
+    return true;
+  }
+
+  async deleteStateForSlot(slot, showStatus = true) {
+    try {
+      await this.getSaveManager().deleteState(
+        this.saveStatePrefix, slot, showStatus ? this.saveMessageCallback : null);
+    } catch (e) {
+      LOG.error('Error deleting state: ' + e);
+    }
+    return true;
+  }
+
   async onStart(canvas) {
     const { app, audioChannels, debug, pal, romBytes, romMd5, SAVE_NAME } =
       this;
@@ -269,7 +329,8 @@ export class Emulator extends AppWrapper {
     window.SDL.receiveEvent = (event) => {};
 
     // Load save state
-    this.saveStatePath = app.getStoragePath(`${romMd5}/${SAVE_NAME}`);
+    this.saveStatePrefix = app.getStoragePath(`${romMd5}/`);
+    this.saveStatePath = `${this.saveStatePrefix}${SAVE_NAME}`;
     await this.loadState();
 
     // Load the ROM
