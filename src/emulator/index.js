@@ -271,7 +271,8 @@ export class Emulator extends AppWrapper {
         await this.getSaveManager().saveState(
           this.saveStatePrefix, slot, s,
           this.canvas,
-          this.saveMessageCallback);
+          this.saveMessageCallback, null,
+          {aspectRatio: "1.333"});
       }
     } catch (e) {
       LOG.error('Error saving state: ' + e);
