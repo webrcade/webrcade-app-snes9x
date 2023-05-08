@@ -75,6 +75,10 @@ export class Emulator extends AppWrapper {
   SRAM_FILE = '/rom.srm';
   SAVE_NAME = 'sav';
 
+  getDefaultAspectRatio() {
+    return 1.333;
+  }
+
   setRom(pal, name, bytes, md5) {
     if (bytes.byteLength === 0) {
       throw new Error('The size is invalid (0 bytes).');
@@ -272,7 +276,7 @@ export class Emulator extends AppWrapper {
           this.saveStatePrefix, slot, s,
           this.canvas,
           this.saveMessageCallback, null,
-          {aspectRatio: "1.333"});
+          {aspectRatio: "" + this.getDefaultAspectRatio()});
       }
     } catch (e) {
       LOG.error('Error saving state: ' + e);
@@ -374,9 +378,16 @@ export class Emulator extends AppWrapper {
     // Enable showing messages
     this.setShowMessageEnabled(true);
 
+    let i = 0;
+
     // Start the display loop
     this.displayLoop.start(() => {
       frame();
+      // Hack to fix screen resize
+      while (i < 10) {
+        this.updateScreenSize();
+        i++;
+      }
       collectAudio(samples);
       this.audioProcessor.storeSound(audioChannels, samples);
       this.pollControls();

@@ -4,6 +4,7 @@ import { Component } from 'react';
 import { GamepadControlsTab, KeyboardControlsTab } from './controls';
 
 import {
+  AppSettingsEditor,
   CustomPauseScreen,
   EditorScreen,
   GamepadWhiteImage,
@@ -12,6 +13,7 @@ import {
   Resources,
   SaveStatesEditor,
   SaveWhiteImage,
+  SettingsAppWhiteImage,
   SnesBackground,
   TEXT_IDS,
 } from '@webrcade/app-common';
@@ -29,10 +31,11 @@ export class EmulatorPauseScreen extends Component {
   ModeEnum = {
     PAUSE: 'pause',
     CONTROLS: 'controls',
+    SETTINGS: 'snes-settings',
     STATE: 'state',
   };
 
-  ADDITIONAL_BUTTON_REFS = [React.createRef(), React.createRef()];
+  ADDITIONAL_BUTTON_REFS = [React.createRef(), React.createRef(), React.createRef()];
 
   componentDidMount() {
     const { loaded } = this.state;
@@ -71,17 +74,28 @@ export class EmulatorPauseScreen extends Component {
         onClick={() => {
           this.setState({ mode: ModeEnum.CONTROLS });
         }}
-      />
+      />,
+      <PauseScreenButton
+        imgSrc={SettingsAppWhiteImage}
+        buttonRef={ADDITIONAL_BUTTON_REFS[1]}
+        label="SNES Settings"
+        onHandlePad={(focusGrid, e) =>
+          focusGrid.moveFocus(e.type, ADDITIONAL_BUTTON_REFS[1])
+        }
+        onClick={() => {
+          this.setState({ mode: ModeEnum.SETTINGS });
+        }}
+      />,
     ];
 
     if (cloudEnabled) {
       additionalButtons.push(
         <PauseScreenButton
           imgSrc={SaveWhiteImage}
-          buttonRef={ADDITIONAL_BUTTON_REFS[1]}
+          buttonRef={ADDITIONAL_BUTTON_REFS[2]}
           label={Resources.getText(TEXT_IDS.SAVE_STATES)}
           onHandlePad={(focusGrid, e) =>
-            focusGrid.moveFocus(e.type, ADDITIONAL_BUTTON_REFS[1])
+            focusGrid.moveFocus(e.type, ADDITIONAL_BUTTON_REFS[2])
           }
           onClick={() => {
             this.setState({ mode: ModeEnum.STATE });
@@ -118,6 +132,12 @@ export class EmulatorPauseScreen extends Component {
                 content: <KeyboardControlsTab />,
               },
             ]}
+          />
+        ) : null}
+        {mode === ModeEnum.SETTINGS ? (
+          <AppSettingsEditor
+            emulator={emulator}
+            onClose={closeCallback}
           />
         ) : null}
         {mode === ModeEnum.STATE ? (
