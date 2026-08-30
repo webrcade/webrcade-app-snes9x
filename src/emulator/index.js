@@ -1,5 +1,5 @@
 import {
-  AppWrapper,
+  BasicAppWrapper,
   Controller,
   Controllers,
   DefaultKeyCodeToControlMapping,
@@ -19,9 +19,14 @@ class ButtonMapping {
 
 const STATE_FILE_PATH = "/freeze.out"
 
-export class Emulator extends AppWrapper {
+export class Emulator extends BasicAppWrapper {
   constructor(app, port2, debug = false) {
     super(app, debug);
+
+    // Read by the shared TouchOverlay component (webrcade-app-common) to
+    // reach the running emulator instance -- Coleco/A5200/Jaguar already
+    // had this from prior work; snes9x never needed it before now.
+    window.emulator = this;
 
     this.port2 = port2;
     this.xnes = null;
@@ -98,6 +103,12 @@ export class Emulator extends AppWrapper {
   async onShowPauseMenu() {
     await this.saveState();
   }
+
+  // Base class default pauses on any tap anywhere on screen -- redundant
+  // (and disruptive) now that there's a dedicated Pause button in the
+  // touch overlay. Same override Coleco/A5200/Jaguar use for the same
+  // reason.
+  createTouchListener() {}
 
   pollControls() {
     const { controllers, bmaps, bcheck } = this;
@@ -391,6 +402,7 @@ export class Emulator extends AppWrapper {
       collectAudio(samples);
       this.audioProcessor.storeSound(audioChannels, samples);
       this.pollControls();
+      this.onFrame();
     });
   }
 }
