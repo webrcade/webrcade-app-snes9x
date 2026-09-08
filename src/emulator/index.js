@@ -137,6 +137,15 @@ export class Emulator extends BasicAppWrapper {
       postRun: [],
       onAbort: (msg) => app.exit(msg),
       onExit: () => app.exit(),
+      // Must be set before the module initializes -- Emscripten's SDL2
+      // backend reads this once, inside _SDL_Init(), to decide whether to
+      // addEventListener("keydown", SDL.receiveEvent) at all.
+      // addEventListener captures that function reference at registration
+      // time, so neutralizing SDL.receiveEvent *after* the fact (the old
+      // approach below, now removed from onStart()) only worked if it
+      // happened to run before _SDL_Init() -- unreliable. This is the
+      // correct place to disable it.
+      doNotCaptureKeyboard: true,
     };
 
     return new Promise((resolve, reject) => {
@@ -340,9 +349,6 @@ export class Emulator extends BasicAppWrapper {
     if (debug) {
       Module._show_fps(1);
     }
-
-    // Disable Emscripten capturing events
-    window.SDL.receiveEvent = (event) => {};
 
     // Load save state
     this.saveStatePrefix = app.getStoragePath(`${romMd5}/`);
