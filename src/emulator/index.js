@@ -1,5 +1,5 @@
 import {
-  AppWrapper,
+  BasicAppWrapper,
   Controller,
   Controllers,
   DefaultKeyCodeToControlMapping,
@@ -19,9 +19,14 @@ class ButtonMapping {
 
 const STATE_FILE_PATH = "/freeze.out"
 
-export class Emulator extends AppWrapper {
+export class Emulator extends BasicAppWrapper {
   constructor(app, port2, debug = false) {
     super(app, debug);
+
+    // Read by the shared TouchOverlay component (webrcade-app-common) to
+    // reach the running emulator instance -- Coleco/A5200/Jaguar already
+    // had this from prior work; snes9x never needed it before now.
+    window.emulator = this;
 
     this.port2 = port2;
     this.xnes = null;
@@ -99,6 +104,12 @@ export class Emulator extends AppWrapper {
     await this.saveState();
   }
 
+  // Base class default pauses on any tap anywhere on screen -- redundant
+  // (and disruptive) now that there's a dedicated Pause button in the
+  // touch overlay. Same override Coleco/A5200/Jaguar use for the same
+  // reason.
+  createTouchListener() {}
+
   pollControls() {
     const { controllers, bmaps, bcheck } = this;
 
@@ -126,6 +137,15 @@ export class Emulator extends AppWrapper {
       postRun: [],
       onAbort: (msg) => app.exit(msg),
       onExit: () => app.exit(),
+      // Must be set before the module initializes -- Emscripten's SDL2
+      // backend reads this once, inside _SDL_Init(), to decide whether to
+      // addEventListener("keydown", SDL.receiveEvent) at all.
+      // addEventListener captures that function reference at registration
+      // time, so neutralizing SDL.receiveEvent *after* the fact (the old
+      // approach below, now removed from onStart()) only worked if it
+      // happened to run before _SDL_Init() -- unreliable. This is the
+      // correct place to disable it.
+      doNotCaptureKeyboard: true,
     };
 
     return new Promise((resolve, reject) => {
@@ -330,9 +350,6 @@ export class Emulator extends AppWrapper {
       Module._show_fps(1);
     }
 
-    // Disable Emscripten capturing events
-    window.SDL.receiveEvent = (event) => {};
-
     // Load save state
     this.saveStatePrefix = app.getStoragePath(`${romMd5}/`);
     this.saveStatePath = `${this.saveStatePrefix}${SAVE_NAME}`;
@@ -391,6 +408,7 @@ export class Emulator extends AppWrapper {
       collectAudio(samples);
       this.audioProcessor.storeSound(audioChannels, samples);
       this.pollControls();
+      this.onFrame();
     });
   }
 }
